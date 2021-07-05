@@ -575,3 +575,75 @@ func (g *Gather) Add(ml ...Markup) {
 func (g *Gather) Type() string {
 	return "Gather"
 }
+
+// Connect TwiML
+type Connect struct {
+	XMLName  xml.Name `xml:"Connect"`
+	Children []Markup `xml:",omitempty"`
+}
+
+// Validate returns an error if the TwiML is constructed improperly
+func (c *Connect) Validate() error {
+	var errs []error
+	for _, s := range c.Children {
+		switch t := s.Type(); t {
+		default:
+			return fmt.Errorf("Not a valid verb under Connect: '%T'", s)
+		case "Stream":
+			if childErr := s.Validate(); childErr != nil {
+				errs = append(errs, childErr)
+			}
+		}
+	}
+
+	if len(c.Children) == 0 {
+		errs = append(errs, fmt.Errorf("Connect requires a child"))
+	}
+
+	if len(errs) > 0 {
+		return ValidationError{errs}
+	}
+	return nil
+}
+
+// Add adds noun structs to a Connect response as children
+func (c *Connect) Add(ml ...Markup) {
+	for _, s := range ml {
+		c.Children = append(c.Children, s)
+	}
+	return
+}
+
+// Type returns the XML name of the verb
+func (c *Connect) Type() string {
+	return "Connect"
+}
+
+// Stream TwiML
+type Stream struct {
+	XMLName              xml.Name `xml:"Stream"`
+	URL                  string   `xml:"url,attr,omitempty"`
+	Name                 string   `xml:"name,attr,omitempty"`
+	Track                string   `xml:"track,attr,omitempty"`
+	StatusCallback       string   `xml:"statusCallback,attr,omitempty"`
+	StatusCallbackMethod string   `xml:"statusCallbackMethod,attr,omitempty"`
+}
+
+// Validate returns an error if the TwiML is constructed improperly
+func (s *Stream) Validate() error {
+	ok := Validate(
+		AllowedMethod(s.StatusCallbackMethod),
+		Required(s.URL),
+	)
+
+	if !ok {
+		return fmt.Errorf("Stream validation failed")
+	}
+
+	return nil
+}
+
+// Type returns the XML name of the verb
+func (s *Stream) Type() string {
+	return "Stream"
+}
